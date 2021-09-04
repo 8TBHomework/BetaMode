@@ -10,21 +10,14 @@ from PIL import Image
 from datauri import DataURI, InvalidDataURI
 from nudenet import NudeDetector
 
+from betamode import DEFAULT_CENSORED_LABELS
 from betamode.ipc import get_message, send_message
-
-DEFAULT_CENSORED_LABELS = [
-    "EXPOSED_GENITALIA_F",
-    "COVERED_GENITALIA_F",
-    "EXPOSED_BREAST_F",
-    "EXPOSED_ANUS"
-]
-
-detector = NudeDetector("default")
 
 
 class BetaMode:
     def __init__(self, tempdir):
         self.tempdir = tempdir
+        self.detector = NudeDetector("default")
         self.queue = Queue()
         self.url_map = {}
         self.semaphore = Semaphore()
@@ -80,7 +73,7 @@ class BetaMode:
             with open(in_path, "wb") as f:
                 f.write(data_bytes)
 
-            detector.censor(in_path, censored_path, parts_to_blur=DEFAULT_CENSORED_LABELS)
+            self.detector.censor(in_path, censored_path, parts_to_blur=DEFAULT_CENSORED_LABELS)
 
             # Reduce size to get below 1MB TODO: make this more reliable
             with Image.open(censored_path) as im:
@@ -93,17 +86,18 @@ class BetaMode:
 def main():
     with TemporaryDirectory(prefix="betamode") as tempdir:
         bm = BetaMode(tempdir)
-
         input_thread = Thread(target=bm.work)
-
         input_thread.start()
 
         while True:
             message = get_message()
+
             if message["type"] == 0:  # enqueue new image
                 bm.enqueue(message["id"], message["url"])
+
             elif message["type"] == 1:  # dequeue image
                 bm.dequeue(message["id"])
+
             elif message["type"] == 2:  # query status
                 send_message({
                     "type": "status",
