@@ -1,18 +1,16 @@
 #!/usr/bin/env python3
-from threading import Thread, Semaphore
+import mimetypes
+import os
 from queue import Queue
+from tempfile import TemporaryDirectory
+from threading import Thread, Semaphore
 
+import requests
 from PIL import Image
+from datauri import DataURI, InvalidDataURI
+from nudenet import NudeDetector
 
 from betamode.ipc import get_message, send_message
-
-import mimetypes
-
-from nudenet import NudeDetector
-from datauri import DataURI, InvalidDataURI
-from tempfile import TemporaryDirectory
-import os
-import requests
 
 DEFAULT_CENSORED_LABELS = [
     "EXPOSED_GENITALIA_F",
