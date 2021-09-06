@@ -4,6 +4,8 @@ import os
 from tempfile import TemporaryDirectory
 from threading import Thread, Semaphore
 
+import cv2
+import numpy as np
 import requests
 from PIL import Image
 from datauri import DataURI, InvalidDataURI
@@ -30,9 +32,9 @@ class BetaMode:
             self.fetch_queue.append((img_id, img_url))
             self.fetch_semaphore.release()
 
-    def enqueue_censor(self, img_id, data_bytes, mime_type):
-        if img_id and data_bytes and mime_type:
-            self.censor_queue.append((img_id, data_bytes, mime_type))
+    def enqueue_censor(self, img_id, data_bytes):
+        if img_id and data_bytes:
+            self.censor_queue.append((img_id, data_bytes))
             self.censor_semaphore.release()
 
     def dequeue_fetch(self, img_id):
@@ -47,18 +49,18 @@ class BetaMode:
             for img_id, img_url in self.fetch_queue:
                 self.dequeue_fetch(img_id)
                 try:
-                    data_bytes, mime_type = self.fetch(img_url)
-                    self.enqueue_censor(img_id, data_bytes, mime_type)
+                    data_bytes = self.fetch(img_url)
+                    self.enqueue_censor(img_id, data_bytes)
                 except Exception as e:
                     self.failed_jobs.append((img_id, "fetch", str(e)))
 
     def work_censor(self):
         while True:
             self.censor_semaphore.acquire()
-            for img_id, data_bytes, mime_type in self.censor_queue:
+            for img_id, data_bytes in self.censor_queue:
                 self.dequeue_censor(img_id)
                 try:
-                    data = self.censor(img_id, data_bytes, mime_type)
+                    data = self.censor(img_id, data_bytes)
                     response = {
                         "type": "result",
                         "id": img_id,
@@ -68,38 +70,43 @@ class BetaMode:
                 except Exception as e:
                     self.failed_jobs.append((img_id, "censor", str(e)))
 
-    def fetch(self, img_url) -> (bytes, str):
+    def fetch(self, img_url) -> bytes:
         try:  # if img_url is a data uri, just extract our information
             data_uri = DataURI(img_url)
             data_bytes = data_uri.data
-            mime_type = data_uri.mimetype
         except InvalidDataURI:  # otherwise its probably an URL
             r = self.session.get(img_url)
             data_bytes = r.content
-            mime_type = r.headers.get("Content-Type")
-        return data_bytes, mime_type
+        return data_bytes
 
-    def censor(self, img_id, data_bytes, mime_type) -> str:
-        extension = mimetypes.guess_extension(mime_type)
-        if extension is None:
-            extension = ".dat"
-        filename = f"{img_id}{extension}"
-        in_path = os.path.join(self.tempdir, filename)
-        censored_path = os.path.join(self.tempdir, f"c_{filename}")
-        resized_path = os.path.join(self.tempdir, f"cr_{img_id}.webp")
+    def censor(self, img_id, data_bytes) -> str:
+        resized_path = os.path.join(self.tempdir, f"{img_id}.webp")
 
         if not os.path.isfile(resized_path):
-            with open(in_path, "wb") as f:
-                f.write(data_bytes)
-
-            self.detector.censor(in_path, censored_path, parts_to_blur=DEFAULT_CENSORED_LABELS)
+            image = censor(self.detector, data_bytes, parts_to_blur=DEFAULT_CENSORED_LABELS)
 
             # Reduce size to get below 1MB TODO: make this more reliable
-            with Image.open(censored_path) as im:
-                im.thumbnail((2000, 1000))
-                im.save(resized_path, "WEBP", quality=60)
+            image.thumbnail((2000, 1000))
+            image.save(resized_path, "WEBP", quality=60)
 
         return DataURI.from_file(resized_path)
+
+
+def censor(detector, data_bytes, parts_to_blur):
+    img_buff = np.frombuffer(data_bytes, np.uint8)
+    image = cv2.imdecode(img_buff, cv2.IMREAD_UNCHANGED)
+    boxes = detector.detect(image)
+
+    boxes = [i["box"] for i in boxes if i["label"] in parts_to_blur]
+
+    for box in boxes:
+        part = image[box[1]: box[3], box[0]: box[2]]
+        image = cv2.rectangle(
+            image, (box[0], box[1]), (box[2], box[3]), (0, 0, 0), cv2.FILLED
+        )
+
+    color_coverted = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    return Image.fromarray(color_coverted)
 
 
 def main():
