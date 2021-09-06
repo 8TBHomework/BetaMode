@@ -20,13 +20,11 @@ class BetaMode:
         self.detector = NudeDetector("default")
         self.queue = Queue()
         self.url_map = {}
-        self.semaphore = Semaphore()
 
     def enqueue(self, img_id, img_url):
         if img_id not in self.url_map and img_id is not None and img_url is not None:
             self.url_map[img_id] = img_url
             self.queue.put(img_id)
-            self.semaphore.release()
 
     def dequeue(self, img_id):
         if img_id in self.url_map:
@@ -36,7 +34,6 @@ class BetaMode:
 
     def work(self):
         while True:
-            self.semaphore.acquire()
             img_id = self.queue.get()
             img_url = self.dequeue(img_id)
             if img_url:
