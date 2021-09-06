@@ -33,7 +33,7 @@ class BetaMode:
             self.fetch_semaphore.release()
 
     def enqueue_censor(self, img_id, data_bytes):
-        if img_id and data_bytes:
+        if img_id:
             self.censor_queue.append((img_id, data_bytes))
             self.censor_semaphore.release()
 
@@ -49,7 +49,12 @@ class BetaMode:
             for img_id, img_url in self.fetch_queue:
                 self.dequeue_fetch(img_id)
                 try:
-                    data_bytes = self.fetch(img_url)
+                    cache_path = self.generate_cache_path(img_id)
+
+                    data_bytes = None
+                    if not os.path.isfile(cache_path):  # if file is already cached skip fetch
+                        data_bytes = self.fetch(img_url)
+
                     self.enqueue_censor(img_id, data_bytes)
                 except Exception as e:
                     self.failed_jobs.append((img_id, "fetch", str(e)))
@@ -60,11 +65,19 @@ class BetaMode:
             for img_id, data_bytes in self.censor_queue:
                 self.dequeue_censor(img_id)
                 try:
-                    data = self.censor(img_id, data_bytes)
+                    cache_path = self.generate_cache_path(img_id)
+
+                    if not os.path.isfile(cache_path):
+                        image = censor(self.detector, data_bytes, parts_to_blur=DEFAULT_CENSORED_LABELS)
+
+                        # Reduce size to get below 1MB TODO: make this more reliable
+                        image.thumbnail((2000, 1000))
+                        image.save(cache_path, "WEBP", quality=60)
+
                     response = {
                         "type": "result",
                         "id": img_id,
-                        "data": data
+                        "data": DataURI.from_file(cache_path)
                     }
                     send_message(response)
                 except Exception as e:
@@ -79,17 +92,8 @@ class BetaMode:
             data_bytes = r.content
         return data_bytes
 
-    def censor(self, img_id, data_bytes) -> str:
-        resized_path = os.path.join(self.tempdir, f"{img_id}.webp")
-
-        if not os.path.isfile(resized_path):
-            image = censor(self.detector, data_bytes, parts_to_blur=DEFAULT_CENSORED_LABELS)
-
-            # Reduce size to get below 1MB TODO: make this more reliable
-            image.thumbnail((2000, 1000))
-            image.save(resized_path, "WEBP", quality=60)
-
-        return DataURI.from_file(resized_path)
+    def generate_cache_path(self, img_id):
+        return os.path.join(self.tempdir, f"{img_id}.webp")
 
 
 def censor(detector, data_bytes, parts_to_blur):
