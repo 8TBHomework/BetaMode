@@ -1,14 +1,24 @@
-chrome.runtime.onMessage.addListener(
-    function (request, sender, sendResponse) {
-        if (request.type === "done") {
-            const elem = document.querySelector(`[betamode="${request.id}"]`);
+import sha256 from "crypto-js/sha256";
+
+function handleNewIMG(imgElem) {
+    const imgUrl = imgElem.src;
+    if (imgUrl) {
+        const imgId = sha256(imgUrl).toString();
+        browser.runtime.sendMessage({type: "enqueue", id: imgId, url: imgUrl});
+        imgElem.setAttribute("betamode", imgId);
+    } // TODO: handle images with no src
+}
+
+browser.runtime.onMessage.addListener(msg => {
+        if (msg.type === "done") {
+            const elem = document.querySelector(`[betamode="${msg.id}"]`);
             if (elem == null) { // element disappeared
                 return;
             }
             elem.addEventListener("load", () => {
                 elem.setAttribute("betamode-done", "1");
-            })
-            elem.src = request.src;
+            });
+            elem.src = msg.src;
             elem.removeAttribute("srcset");
         }
     }
@@ -16,31 +26,25 @@ chrome.runtime.onMessage.addListener(
 
 function queueImages() {
     for (const e of document.querySelectorAll("img:not([betamode])")) {
-        if (e.src) {
-            chrome.runtime.sendMessage({type: "enqueue", url: e.src}, response => {
-                if (response.type === "queued") {
-                    e.setAttribute("betamode", response.id);
-                }
-            });
-        }
+        handleNewIMG(e);
     }
 }
 
-const config = { attributes: true, childList: true, subtree: true };
+const config = {attributes: true, childList: true, subtree: true};
 
 const observer = new MutationObserver(mutations => {
     mutations.forEach(mutation => {
         if (mutation.type === "childList") {
             mutation.removedNodes.forEach(node => {
                 if (node.hasAttribute("betamode") && !node.hasAttribute("betamode-done")) {
-                    chrome.runtime.sendMessage({type: "dequeue", id: node.getAttribute("betamode")})
+                    chrome.runtime.sendMessage({type: "dequeue", id: node.getAttribute("betamode")});
                 }
             });
         }
     });
 });
 
-observer.observe(document.body, config)
+observer.observe(document.body, config);
 
-setInterval(queueImages, 1000);
-queueImages()
+setInterval(queueImages, 500);
+queueImages();
