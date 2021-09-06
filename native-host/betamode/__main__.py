@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import mimetypes
 import os
 from tempfile import TemporaryDirectory
 from threading import Thread, Semaphore
@@ -68,7 +67,7 @@ class BetaMode:
                     cache_path = self.generate_cache_path(img_id)
 
                     if not os.path.isfile(cache_path):
-                        image = censor(self.detector, data_bytes, parts_to_blur=DEFAULT_CENSORED_LABELS)
+                        image = self.censor_custom(data_bytes, parts_to_blur=DEFAULT_CENSORED_LABELS)
 
                         # Reduce size to get below 1MB TODO: make this more reliable
                         image.thumbnail((2000, 1000))
@@ -92,25 +91,24 @@ class BetaMode:
             data_bytes = r.content
         return data_bytes
 
+    def censor_custom(self, data_bytes, parts_to_blur):
+        img_buff = np.frombuffer(data_bytes, np.uint8)
+        image = cv2.imdecode(img_buff, cv2.IMREAD_UNCHANGED)
+        boxes = self.detector.detect(image)
+
+        boxes = [i["box"] for i in boxes if i["label"] in parts_to_blur]
+
+        for box in boxes:
+            part = image[box[1]: box[3], box[0]: box[2]]
+            image = cv2.rectangle(
+                image, (box[0], box[1]), (box[2], box[3]), (0, 0, 0), cv2.FILLED
+            )
+
+        color_coverted = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        return Image.fromarray(color_coverted)
+
     def generate_cache_path(self, img_id):
         return os.path.join(self.tempdir, f"{img_id}.webp")
-
-
-def censor(detector, data_bytes, parts_to_blur):
-    img_buff = np.frombuffer(data_bytes, np.uint8)
-    image = cv2.imdecode(img_buff, cv2.IMREAD_UNCHANGED)
-    boxes = detector.detect(image)
-
-    boxes = [i["box"] for i in boxes if i["label"] in parts_to_blur]
-
-    for box in boxes:
-        part = image[box[1]: box[3], box[0]: box[2]]
-        image = cv2.rectangle(
-            image, (box[0], box[1]), (box[2], box[3]), (0, 0, 0), cv2.FILLED
-        )
-
-    color_coverted = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    return Image.fromarray(color_coverted)
 
 
 def main():
