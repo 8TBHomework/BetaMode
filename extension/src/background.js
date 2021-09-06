@@ -53,14 +53,14 @@ nativeHostPort.onMessage.addListener(msg => {
         console.log(`Our queue size: ${Object.keys(idTabMap).length}`);
         console.log(`Host fetch: ${msg.fetch.alive ? "alive" : "dead"}, ${msg.fetch.queue}`);
         console.log(`Host censor: ${msg.censor.alive ? "alive" : "dead"}, ${msg.censor.queue}`);
-        console.log(msg.failed)
+        console.log(msg.failed);
         break;
     case "result":
         let imgId = msg.id;
 
         console.debug(`Received result from native host: ${msg.data !== null} with id ${imgId}`);
 
-        if (msg.data !== null) {
+        if (msg.data !== null && imgId in idTabMap) {
             idTabMap[imgId].forEach((tabId) => {
                 console.debug(`Found tab ${tabId} for id ${imgId}`);
                 browser.tabs.sendMessage(tabId, {type: "done", id: imgId, src: msg.data});
@@ -83,3 +83,8 @@ browser.tabs.onRemoved.addListener(closedTabId => {
 setInterval(() => {
     nativeHostPort.postMessage({type: 2});
 }, 5000);
+
+nativeHostPort.postMessage({
+    type: 3, // Settings
+    user_agent: navigator.userAgent
+});

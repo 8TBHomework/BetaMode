@@ -23,6 +23,7 @@ class BetaMode:
         self.censor_queue = []
         self.censor_semaphore = Semaphore()
         self.failed_jobs = []
+        self.session = requests.session()
 
     def enqueue_fetch(self, img_id, img_url):
         if img_id and img_url:
@@ -73,7 +74,7 @@ class BetaMode:
             data_bytes = data_uri.data
             mime_type = data_uri.mimetype
         except InvalidDataURI:  # otherwise its probably an URL
-            r = requests.get(img_url)
+            r = self.session.get(img_url)
             data_bytes = r.content
             mime_type = r.headers.get("Content-Type")
         return data_bytes, mime_type
@@ -133,6 +134,10 @@ def main():
                     },
                     "failed": bm.failed_jobs
                 })
+
+            elif message["type"] == 3:  # settings
+                if "user_agent" in message:
+                    bm.session.headers.update({'User-Agent': message["user_agent"]})
 
 
 if __name__ == '__main__':
