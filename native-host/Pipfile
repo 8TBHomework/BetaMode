@@ -8,6 +8,8 @@ python-datauri = "*"
 nudenet = "*"
 pillow = "*"
 requests = "*"
+opencv-python-headless = "*"
+numpy = "*"
 
 [dev-packages]
 
