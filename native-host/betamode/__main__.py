@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import mimetypes
 import os
-from queue import Queue
 from tempfile import TemporaryDirectory
 from threading import Thread, Semaphore
 
@@ -12,43 +11,63 @@ from nudenet import NudeDetector
 
 from betamode import DEFAULT_CENSORED_LABELS
 from betamode.ipc import get_message, send_message
+from betamode.util import filter_tuples
 
 
 class BetaMode:
     def __init__(self, tempdir):
         self.tempdir = tempdir
         self.detector = NudeDetector("default")
-        self.queue = Queue()
-        self.url_map = {}
+        self.fetch_queue = []
+        self.fetch_semaphore = Semaphore()
+        self.censor_queue = []
+        self.censor_semaphore = Semaphore()
+        self.failed_jobs = []
 
-    def enqueue(self, img_id, img_url):
-        if img_id not in self.url_map and img_id is not None and img_url is not None:
-            self.url_map[img_id] = img_url
-            self.queue.put(img_id)
+    def enqueue_fetch(self, img_id, img_url):
+        if img_id and img_url:
+            self.fetch_queue.append((img_id, img_url))
+            self.fetch_semaphore.release()
 
-    def dequeue(self, img_id):
-        if img_id in self.url_map:
-            # Don't need to touch queue, as it will be handled by worker
-            return self.url_map.pop(img_id)
-        return None
+    def enqueue_censor(self, img_id, data_bytes, mime_type):
+        if img_id and data_bytes and mime_type:
+            self.censor_queue.append((img_id, data_bytes, mime_type))
+            self.censor_semaphore.release()
 
-    def work(self):
+    def dequeue_fetch(self, img_id):
+        self.fetch_queue = filter_tuples(self.fetch_queue, 0, img_id)
+
+    def dequeue_censor(self, img_id):
+        self.censor_queue = filter_tuples(self.censor_queue, 0, img_id)
+
+    def work_fetch(self):
         while True:
-            img_id = self.queue.get()
-            img_url = self.dequeue(img_id)
-            if img_url:
+            self.fetch_semaphore.acquire()
+            for img_id, img_url in self.fetch_queue:
+                self.dequeue_fetch(img_id)
                 try:
-                    data = self.censor(img_id, img_url)
-                except:
-                    data = None
-                response = {
-                    "type": "result",
-                    "id": img_id,
-                    "data": data
-                }
-                send_message(response)
+                    data_bytes, mime_type = self.fetch(img_url)
+                    self.enqueue_censor(img_id, data_bytes, mime_type)
+                except Exception as e:
+                    self.failed_jobs.append((img_id, "fetch", str(e)))
 
-    def censor(self, img_id, img_url) -> str:
+    def work_censor(self):
+        while True:
+            self.censor_semaphore.acquire()
+            for img_id, data_bytes, mime_type in self.censor_queue:
+                self.dequeue_censor(img_id)
+                try:
+                    data = self.censor(img_id, data_bytes, mime_type)
+                    response = {
+                        "type": "result",
+                        "id": img_id,
+                        "data": data
+                    }
+                    send_message(response)
+                except Exception as e:
+                    self.failed_jobs.append((img_id, "censor", str(e)))
+
+    def fetch(self, img_url) -> (bytes, str):
         try:  # if img_url is a data uri, just extract our information
             data_uri = DataURI(img_url)
             data_bytes = data_uri.data
@@ -57,7 +76,9 @@ class BetaMode:
             r = requests.get(img_url)
             data_bytes = r.content
             mime_type = r.headers.get("Content-Type")
+        return data_bytes, mime_type
 
+    def censor(self, img_id, data_bytes, mime_type) -> str:
         extension = mimetypes.guess_extension(mime_type)
         if extension is None:
             extension = ".dat"
@@ -83,23 +104,34 @@ class BetaMode:
 def main():
     with TemporaryDirectory(prefix="betamode") as tempdir:
         bm = BetaMode(tempdir)
-        input_thread = Thread(target=bm.work)
-        input_thread.start()
+
+        fetch_thread = Thread(target=bm.work_fetch)
+        fetch_thread.start()
+        censor_thread = Thread(target=bm.work_censor)
+        censor_thread.start()
 
         while True:
             message = get_message()
 
             if message["type"] == 0:  # enqueue new image
-                bm.enqueue(message["id"], message["url"])
+                bm.enqueue_fetch(message["id"], message["url"])
 
             elif message["type"] == 1:  # dequeue image
-                bm.dequeue(message["id"])
+                bm.dequeue_fetch(message["id"])
+                bm.dequeue_censor(message["id"])
 
             elif message["type"] == 2:  # query status
                 send_message({
                     "type": "status",
-                    "queue": bm.queue.qsize(),
-                    "worker": input_thread.is_alive()
+                    "fetch": {
+                        "queue": len(bm.fetch_queue),
+                        "alive": fetch_thread.is_alive(),
+                    },
+                    "censor": {
+                        "queue": len(bm.censor_queue),
+                        "alive": censor_thread.is_alive()
+                    },
+                    "failed": bm.failed_jobs
                 })
 
 

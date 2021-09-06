@@ -50,7 +50,10 @@ nativeHostPort.onMessage.addListener(msg => {
         console.debug(msg.debug);
         break;
     case "status":
-        console.log(`Host queue size: ${msg.queue}, Our queue size: ${Object.keys(idTabMap).length}, Worker alive: ${msg.worker}`);
+        console.log(`Our queue size: ${Object.keys(idTabMap).length}`);
+        console.log(`Host fetch: ${msg.fetch.alive ? "alive" : "dead"}, ${msg.fetch.queue}`);
+        console.log(`Host censor: ${msg.censor.alive ? "alive" : "dead"}, ${msg.censor.queue}`);
+        console.log(msg.failed)
         break;
     case "result":
         let imgId = msg.id;
