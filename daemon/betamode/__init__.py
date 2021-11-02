@@ -12,6 +12,7 @@ from datauri import DataURI, InvalidDataURI
 from fastapi import FastAPI, Request
 from nudenet import NudeDetector
 from starlette.datastructures import Headers
+from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import FileResponse
 
 from betamode.util import filter_headers
@@ -76,6 +77,7 @@ class BetaMode:
 
 
 app = FastAPI()
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_headers=["*"])
 bm = BetaMode(mkdtemp(prefix="betamode"))
 
 
