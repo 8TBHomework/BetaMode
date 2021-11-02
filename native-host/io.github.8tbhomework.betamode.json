@@ -1,9 +1,0 @@
-{
-  "name": "io.github.8tbhomework.betamode",
-  "description": "Beta Mode Host",
-  "path": "<path>/betamode/native-host/host.sh",
-  "type": "stdio",
-  "allowed_extensions": [
-    "betamode@8tbhomework.github.io"
-  ]
-}

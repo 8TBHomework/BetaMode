@@ -1,7 +1,0 @@
-"""betamode main package"""
-DEFAULT_CENSORED_LABELS = [
-    "EXPOSED_GENITALIA_F",
-    "COVERED_GENITALIA_F",
-    "EXPOSED_BREAST_F",
-    "EXPOSED_ANUS"
-]
