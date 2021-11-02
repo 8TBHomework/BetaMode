@@ -1,3 +1,5 @@
+const API_ENDPOINT = "http://localhost:8000/censored"
+
 function base64url(plaintext) {
     return btoa(plaintext).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
 }
@@ -5,7 +7,7 @@ function base64url(plaintext) {
 function handleNewIMG(imgElem) {
     const imgUrl = imgElem.src;
     if (imgUrl) {
-        imgElem.src = `http://localhost:8000/censored/${base64url(imgUrl)}`
+        imgElem.src = `${API_ENDPOINT}/${base64url(imgUrl)}`
         imgElem.setAttribute("betamode", "1");
         imgElem.removeAttribute("srcset");
     } // TODO: handle images with no src
