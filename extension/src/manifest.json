@@ -8,11 +8,6 @@
       "id": "betamode@8tbhomework.github.io"
     }
   },
-  "background": {
-    "scripts": [
-      "background.js"
-    ]
-  },
   "content_scripts": [
     {
       "matches": [
@@ -33,7 +28,6 @@
     }
   ],
   "permissions": [
-    "nativeMessaging",
     "tabs"
   ]
 }
