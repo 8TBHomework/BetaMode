@@ -33,11 +33,13 @@ function queueExistingImages() {
 
 function findImagesRecursively(element) {
     let images = [];
-    if (element.tagName === "IMG" && !element.hasAttribute("betamode"))
-        images.push(element);
+    if (element != null && element.nodeType === 1) {
+        if (element.tagName === "IMG" && !element.hasAttribute("betamode"))
+            images.push(element);
 
-    for (const child of element.childNodes) {
-        images = images.concat(findImagesRecursively(child));
+        for (const child of element.childNodes) {
+            images = images.concat(findImagesRecursively(child));
+        }
     }
     return images;
 }
