@@ -16,7 +16,6 @@ function handleNewIMG(imgElem) {
 }
 
 function handleNewBGIMG(imgElem) {
-    console.log(imgElem);
     const bgIMG = getComputedStyle(imgElem).backgroundImage;
     const match = bgIMG.match(BG_IMG_URL_PATTERN);
     const imgUrl = match.length > 1 ? match[1] : null;
