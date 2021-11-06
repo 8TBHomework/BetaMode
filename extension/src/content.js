@@ -61,7 +61,7 @@ function findBackgroundImagesRecursively(element) {
 }
 
 for (const pattern of WHITELISTED_DOMAINS) {
-    if (window.location.hostname.match(pattern).length > 0) {
+    if (pattern.test(window.location.hostname)) {
         document.documentElement.setAttribute("betamode-cleared", "");
         break;
     }
