@@ -25,7 +25,6 @@
     "extends": "stylelint-config-xo"
   },
   "dependencies": {
-    "base64url": "^3.0.1",
     "webext-options-sync": "^3.0.0",
     "webextension-polyfill": "^0.8.0"
   },
