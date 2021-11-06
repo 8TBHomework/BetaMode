@@ -64,6 +64,7 @@ const callback = function (mutationsList, observer) {
         if (mutation.type === "childList") {
             for (const e of mutation.addedNodes) {
                 findImagesRecursively(e).forEach(handleNewIMG);
+                findBackgroundImagesRecursively(e).forEach(handleNewBGIMG);
             }
         }
     }
