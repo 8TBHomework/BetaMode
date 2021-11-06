@@ -25,7 +25,8 @@ DEFAULT_CENSORED_LABELS = [
 
 ALLOWED_SCHEMES = [
     "http",
-    "https"
+    "https",
+    "data"
 ]
 
 
