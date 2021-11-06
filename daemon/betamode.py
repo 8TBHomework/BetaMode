@@ -62,11 +62,14 @@ class BetaMode:
                 image, (box[0], box[1]), (box[2], box[3]), (0, 0, 0), cv2.FILLED
             )
 
+        if len(boxes) == 0:
+            return False
+
         color_converted = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         return Image.fromarray(color_converted)
 
     def generate_cache_path(self, img_id):
-        return os.path.join(self.tempdir, f"{img_id}.webp")
+        return os.path.join(self.tempdir, f"{img_id}")
 
 
 persistent_cache_path = appdirs.user_cache_dir("betamode", False)
@@ -94,7 +97,10 @@ def censor(url_b64: str, request: Request):
         data_bytes = bm.fetch(img_url, request.headers)
 
         image = bm.censor_custom(data_bytes, parts_to_blur=DEFAULT_CENSORED_LABELS)
-
-        image.save(cache_path, "WEBP", quality=60)
+        if image:
+            image.save(cache_path, "WEBP", quality=60)
+        else:
+            with open(cache_path, "wb") as f:
+                f.write(data_bytes)
 
     return FileResponse(cache_path)
