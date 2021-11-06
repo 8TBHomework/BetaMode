@@ -27,11 +27,8 @@ function handleNewBGIMG(imgElem) {
 }
 
 function queueExistingImages() {
-    for (const e of document.querySelectorAll("img:not([betamode])")) {
-        handleNewIMG(e);
-    }
-    const images = findBackgroundImagesRecursively(document.body);
-    images.forEach(handleNewBGIMG);
+    findImagesRecursively(document.body).forEach(handleNewIMG);
+    findBackgroundImagesRecursively(document.body).forEach(handleNewBGIMG);
 }
 
 function findImagesRecursively(element) {
@@ -64,8 +61,7 @@ const callback = function (mutationsList, observer) {
     for (const mutation of mutationsList) {
         if (mutation.type === "childList") {
             for (const e of mutation.addedNodes) {
-                const images = findImagesRecursively(e);
-                images.forEach(handleNewIMG);
+                findImagesRecursively(e).forEach(handleNewIMG);
             }
         }
     }
