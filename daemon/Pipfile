@@ -13,6 +13,7 @@ opencv-python-headless = "*"
 numpy = "*"
 fastapi = "*"
 uvicorn = "*"
+python-magic = "*"
 
 [dev-packages]
 

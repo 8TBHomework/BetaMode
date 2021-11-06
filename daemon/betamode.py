@@ -4,6 +4,7 @@ from base64 import urlsafe_b64decode
 from hashlib import sha1
 from urllib.parse import urlparse
 
+import magic
 import appdirs
 import cv2
 import numpy as np
@@ -40,15 +41,17 @@ class BetaMode:
         self.detector = NudeDetector("default")
         self.session = requests.session()
 
-    def fetch(self, img_url, headers: Headers) -> bytes:
+    def fetch(self, img_url, headers: Headers) -> (bytes, str):
         try:  # if img_url is a data uri, just extract the information
             data_uri = DataURI(img_url)
             data_bytes = data_uri.data
+            content_type = data_uri.mimetype
         except InvalidDataURI:  # otherwise its probably an URL
             cleaned_headers = filter_headers(headers.items(), ["host"])
             r = self.session.get(img_url, headers=dict(cleaned_headers))
             data_bytes = r.content
-        return data_bytes
+            content_type = r.headers.get("Content-Type")
+        return data_bytes, content_type
 
     def censor_custom(self, data_bytes, parts_to_blur):
         image = cv2.imdecode(np.frombuffer(data_bytes, np.uint8), cv2.IMREAD_UNCHANGED)
@@ -92,14 +95,19 @@ def censor(url_b64: str, request: Request):
     img_id = sha1(img_url.encode()).hexdigest()
 
     cache_path = bm.generate_cache_path(img_id)
+    content_type = None
     if not os.path.isfile(cache_path):  # if file is already cached skip fetch
-        data_bytes = bm.fetch(img_url, request.headers)
+        data_bytes, content_type = bm.fetch(img_url, request.headers)
 
         image = bm.censor_custom(data_bytes, parts_to_blur=DEFAULT_CENSORED_LABELS)
         if image:
             image.save(cache_path, "WEBP", quality=60)
+            content_type = "image/webp"
         else:
             with open(cache_path, "wb") as f:
                 f.write(data_bytes)
 
-    return FileResponse(cache_path)
+    if content_type is None:  # potentially expensive, hopefully we know this from before
+        content_type = magic.from_file(cache_path, mime=True)
+
+    return FileResponse(cache_path, media_type=content_type)
