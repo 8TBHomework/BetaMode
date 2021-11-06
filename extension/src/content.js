@@ -1,6 +1,10 @@
 const API_ENDPOINT = "http://localhost:8000/censored";
 const BG_IMG_URL_PATTERN = /url\("(.*)"\)/;
 
+const WHITELISTED_DOMAINS = [
+    /(.*\.)?github\.com/,
+    /(.*\.)?instagram\.com/
+];
 
 function base64url(plaintext) {
     return btoa(plaintext).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
@@ -56,20 +60,29 @@ function findBackgroundImagesRecursively(element) {
     return images;
 }
 
-const config = {childList: true, subtree: true};
+for (const pattern of WHITELISTED_DOMAINS) {
+    if (window.location.hostname.match(pattern).length > 0) {
+        document.documentElement.setAttribute("betamode-cleared", "");
+        break;
+    }
+}
 
-const callback = function (mutationsList, observer) {
-    for (const mutation of mutationsList) {
-        if (mutation.type === "childList") {
-            for (const e of mutation.addedNodes) {
-                findImagesRecursively(e).forEach(handleNewIMG);
-                findBackgroundImagesRecursively(e).forEach(handleNewBGIMG);
+if (!document.documentElement.hasAttribute("betamode-cleared")) {
+    const config = {childList: true, subtree: true};
+
+    const callback = function (mutationsList, observer) {
+        for (const mutation of mutationsList) {
+            if (mutation.type === "childList") {
+                for (const e of mutation.addedNodes) {
+                    findImagesRecursively(e).forEach(handleNewIMG);
+                    findBackgroundImagesRecursively(e).forEach(handleNewBGIMG);
+                }
             }
         }
-    }
-};
+    };
 
-const observer = new MutationObserver(callback);
-observer.observe(document, config);
+    const observer = new MutationObserver(callback);
+    observer.observe(document, config);
 
-queueExistingImages();
+    queueExistingImages();
+}

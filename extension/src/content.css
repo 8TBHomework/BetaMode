@@ -1,7 +1,7 @@
-img[betamode] {
+html:not([betamode-cleared]) img[betamode] {
     transition: filter ease 500ms;
 }
 
-img:not([betamode]) {
+html:not([betamode-cleared]) img:not([betamode]) {
     filter: blur(20px) brightness(0.25) !important;
 }
