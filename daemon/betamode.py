@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 from tempfile import mkdtemp
+from urllib.parse import urlparse
 
 import cv2
 from base64 import urlsafe_b64decode
@@ -13,13 +14,18 @@ from fastapi import FastAPI, Request
 from nudenet import NudeDetector
 from starlette.datastructures import Headers
 from starlette.middleware.cors import CORSMiddleware
-from starlette.responses import FileResponse
+from starlette.responses import FileResponse, PlainTextResponse
 
 DEFAULT_CENSORED_LABELS = [
     "EXPOSED_GENITALIA_F",
     "COVERED_GENITALIA_F",
     "EXPOSED_BREAST_F",
     "EXPOSED_ANUS"
+]
+
+ALLOWED_SCHEMES = [
+    "http",
+    "https"
 ]
 
 
@@ -69,8 +75,13 @@ bm = BetaMode(mkdtemp(prefix="betamode"))
 
 @app.get("/censored/{url_b64}")
 def censor(url_b64: str, request: Request):
-    img_url = urlsafe_b64decode(url_b64 + '=' * (4 - len(url_b64) % 4))
-    img_id = sha1(img_url).hexdigest()
+    img_url = urlsafe_b64decode(url_b64 + '=' * (4 - len(url_b64) % 4)).decode()
+    img_url_parsed = urlparse(img_url)
+
+    if img_url_parsed.scheme not in ALLOWED_SCHEMES:
+        return PlainTextResponse(f"scheme {img_url_parsed.scheme} not allowed", 400)
+
+    img_id = sha1(img_url.encode()).hexdigest()
 
     cache_path = bm.generate_cache_path(img_id)
     if not os.path.isfile(cache_path):  # if file is already cached skip fetch
