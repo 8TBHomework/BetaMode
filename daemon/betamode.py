@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 import os
+from base64 import urlsafe_b64decode
+from hashlib import sha1
 from tempfile import mkdtemp
 from urllib.parse import urlparse
 
 import cv2
-from base64 import urlsafe_b64decode
-from hashlib import sha1
 import numpy as np
 import requests
 from PIL import Image
