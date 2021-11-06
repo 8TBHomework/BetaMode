@@ -1,29 +1,10 @@
 {
   "name": "betamode",
   "scripts": {
-    "build": "parcel build src/manifest.json --no-content-hash --no-source-maps --dist-dir dist --no-cache --detailed-report 0",
-    "lint": "run-p lint:*",
-    "lint-fix": "run-p 'lint:* -- --fix'",
-    "lint:js": "xo",
-    "test": "run-p lint:* build",
-    "watch": "parcel watch src/manifest.json --dist-dir dist --no-cache --no-hmr"
+    "build": "parcel build --no-content-hash --no-source-maps --no-cache --detailed-report 0",
+    "watch": "parcel watch --no-cache --no-hmr"
   },
-  "xo": {
-    "envs": [
-      "browser"
-    ],
-    "rules": {
-      "no-unused-vars": [
-        "error",
-        {
-          "varsIgnorePattern": "browser"
-        }
-      ]
-    }
-  },
-  "stylelint": {
-    "extends": "stylelint-config-xo"
-  },
+  "source": "src/manifest.json",
   "dependencies": {
     "webext-options-sync": "^3.0.0",
     "webextension-polyfill": "^0.8.0"
@@ -38,6 +19,6 @@
     "xo": "^0.46.3"
   },
   "webExt": {
-    "sourceDir": "distribution"
+    "sourceDir": "dist"
   }
 }
