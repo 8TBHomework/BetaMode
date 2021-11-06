@@ -51,8 +51,7 @@ class BetaMode:
         return data_bytes
 
     def censor_custom(self, data_bytes, parts_to_blur):
-        img_buff = np.frombuffer(data_bytes, np.uint8)
-        image = cv2.imdecode(img_buff, cv2.IMREAD_UNCHANGED)
+        image = cv2.imdecode(np.frombuffer(data_bytes, np.uint8), cv2.IMREAD_UNCHANGED)
         boxes = self.detector.detect(image)
 
         boxes = [i["box"] for i in boxes if i["label"] in parts_to_blur]
@@ -65,8 +64,8 @@ class BetaMode:
         if len(boxes) == 0:
             return False
 
-        color_converted = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        return Image.fromarray(color_converted)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        return Image.fromarray(image)
 
     def generate_cache_path(self, img_id):
         return os.path.join(self.tempdir, f"{img_id}")
