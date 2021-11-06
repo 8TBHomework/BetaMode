@@ -16,7 +16,8 @@
       "css": [
         "content.css"
       ],
-      "run_at": "document_start"
+      "run_at": "document_start",
+      "all_frames": true
     },
     {
       "matches": [
@@ -24,7 +25,9 @@
       ],
       "js": [
         "content.js"
-      ]
+      ],
+      "run_at": "document_start",
+      "all_frames": true
     }
   ],
   "permissions": [
