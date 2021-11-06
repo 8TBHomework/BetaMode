@@ -2,9 +2,9 @@
 import os
 from base64 import urlsafe_b64decode
 from hashlib import sha1
-from tempfile import mkdtemp
 from urllib.parse import urlparse
 
+import appdirs
 import cv2
 import numpy as np
 import requests
@@ -69,9 +69,14 @@ class BetaMode:
         return os.path.join(self.tempdir, f"{img_id}.webp")
 
 
+persistent_cache_path = appdirs.user_cache_dir("betamode", False)
+
+if not os.path.isdir(persistent_cache_path):
+    os.mkdir(persistent_cache_path)
+
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_headers=["*"])
-bm = BetaMode(mkdtemp(prefix="betamode"))
+bm = BetaMode(persistent_cache_path)
 
 
 @app.get("/censored/{url_b64}")
